@@ -156,6 +156,18 @@ API_PREFIX = "/api"
 # 데모용. 실배포 시 프론트 도메인만 남긴다.
 API_CORS_ORIGINS = ["*"]
 
+# 모델 성능 카드 계약. 성능 수치는 실제 Ablation 실행 결과로만
+# 채우며, 현재는 S-DoT 설치위치 매핑이 없어 pending 상태다.
+MODEL_VARIANTS = [
+    {"key": "a", "label": "달력·부하 패턴"},
+    {"key": "b", "label": "+ 서울 대표 기상"},
+    {"key": "c", "label": "+ 미기후·도시공간"},
+]
+MODEL_PERFORMANCE_NOTE = (
+    "S-DoT 설치위치 매핑이 없어 기상만 모델과 미기후 모델의 "
+    "Ablation 성능을 아직 측정할 수 없습니다."
+)
+
 # 실측 스냅샷 (원자료가 없을 때 API 가 이 값을 서빙한다)
 SNAPSHOT_DIR = REPO_ROOT / "docs" / "api_sample"
 

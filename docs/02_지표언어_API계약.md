@@ -22,6 +22,18 @@
 2. 발표 시연 중 화면 문구가 흔들리지 않는다
 3. 같은 지표가 지도·카드·비교표에서 다르게 표기되는 사고를 막는다
 
+### 2026-08 프론트 연동 판단 ★
+
+- 현재 백엔드에는 **기상만(B) 대비 미기후 반영(C) 예측 결과가 없다.**
+  S-DoT 설치위치 매핑과 Ablation 완료 전에는 미기후 토글을 비활성화하거나
+  `pending` 상태로 표시한다.
+- `baseline_kwh`는 **평시 기저수요**이지 기상만 모델의 예측값이 아니다.
+  `modelB` 또는 `usage_weather_only_kwh`로 사용하면 안 된다.
+- 실측 결과는 가설과 반대다. 구로동의 도시열 지수가 높지만 추가 전력 사용률은
+  진관동이 더 높게 관측됐다. **도시열 등급과 전력 위험을 같은 개념으로 표시하지 않는다.**
+- 등급 배지·지도 폴리곤은 서버 색을 쓴다. 차트 계열색은 지역 식별을 위해
+  진관동=초록, 구로동=코랄로 고정해도 된다. 단, 차트 색으로 등급을 재판정하지 않는다.
+
 ---
 
 # Part I. 지표 언어 변환표
@@ -103,6 +115,8 @@ MCI는 −100~+100이라 음수가 나와서 직관적이지 않다. **화면에
 | `GET` | `/api/dong/{code}` | 동 상세 카드 |
 | `GET` | `/api/dong/{code}/forecast?date=` | 24시간 시계열 |
 | `GET` | `/api/compare?codes=A,B` | 두 동 비교표 |
+| `GET` | `/api/model-performance` | A/B/C 모델 성능 카드 |
+| `GET` | `/api/briefing?codes=A,B&date=` | AI 브리핑 |
 | `GET` | `/api/meta` | 서비스 모드 · 미확보 항목 · 발표 단서 |
 
 법정동코드: 구로동 `1153010100` · 진관동 `1138011400`
@@ -245,6 +259,23 @@ MCI는 −100~+100이라 음수가 나와서 직관적이지 않다. **화면에
 `humidity` · `wind` 는 원자료가 있을 때만 채워지고, 없으면 `null` 입니다 — **프론트는 해당 칩을 숨깁니다.**
 `heatwave` 는 일 최고기온 ≥ 33℃ 판정을 백엔드가 내린 결과입니다.
 
+### 시나리오 토글 제한 ★
+
+현재 엔드포인트에는 `scenario=weather|microclimate` 파라미터가 없고,
+`points` 안에도 B/C 예측선이 없다. 이는 계약 누락이 아니라 원천자료 미확보 상태를
+그대로 반영한 것이다.
+
+| 프론트 요소 | 현재 처리 |
+|---|---|
+| 기상만 ↔ 미기후 토글 | 비활성화 + `S-DoT 설치위치 매핑 대기` 문구 |
+| 실측 전력 | `usage_kwh` 실선 |
+| 평시 수준 | `baseline_kwh` 점선 |
+| 동별 위험선 | `threshold_kwh` 가로선 |
+| S-DoT 온도·ASOS 격차 | 표시하지 않음 |
+
+Snapshot 모드의 24시간 시계열은 현재 **진관동 2022-07-10**만 제공한다.
+구로동 또는 다른 날짜를 요청하면 503 `pending` + `note`가 응답된다.
+
 ---
 
 ## ③ `GET /api/dongs/geojson` — 지도 폴리곤
@@ -347,7 +378,50 @@ python -m urban_microgrid.landcover 법정동경계.shp
 }
 ```
 
-좌표는 법정동 경계 SHP의 중심점(centroid)에서 뽑습니다. **표출용이므로 EPSG:4326으로 변환** 후 내려보냅니다.
+현재 `latlng_source` 는 `provisional`이며 좌표는 임시값입니다. 법정동 경계 SHP를 확보하면
+`representative_point()`를 EPSG:4326으로 변환한 좌표로 교체하고 `latlng_source: "shp"`로 바꿉니다.
+
+---
+
+## ⑥ `GET /api/model-performance` — 모델 성능 카드
+
+화면의 A/B/C MAPE 카드와 대응하는 엔드포인트입니다. 현재는 실제 Ablation 전이므로
+목업의 `14.8 / 10.3 / 7.1`을 사용하지 않습니다.
+
+```json
+{
+  "status": "pending",
+  "metric": "MAPE",
+  "models": [
+    { "key": "a", "label": "달력·부하 패턴", "mape": null, "rmse": null, "mae": null },
+    { "key": "b", "label": "+ 서울 대표 기상", "mape": null, "rmse": null, "mae": null },
+    { "key": "c", "label": "+ 미기후·도시공간", "mape": null, "rmse": null, "mae": null }
+  ],
+  "improvement_percent": null,
+  "improvement_basis": "B(기상만) 대비 C(미기후·도시공간)",
+  "note": "S-DoT 설치위치 매핑이 없어 기상만 모델과 미기후 모델의 Ablation 성능을 아직 측정할 수 없습니다.",
+  "caveat": "측정 전이므로 개선율을 표시하지 않습니다."
+}
+```
+
+프론트는 `status === "pending"`이면 막대·개선율 배지 대신 스켈레톤과 `note`를 표시합니다.
+
+---
+
+## ⑦ `GET /api/briefing` — AI 브리핑
+
+Gemini가 실측 사실표를 문장으로 옮긴 결과입니다. 핵심 필드는 `text`, `status`,
+`unverified_numbers`, `note`입니다. 프론트는 `text`를 그대로 표시하고,
+`unverified_numbers`가 비어 있지 않으면 경고 배지를 붙입니다.
+
+Gemini API key가 없거나 호출이 실패하면 503 `pending` + `note`를 내립니다.
+
+---
+
+## ⑧ `GET /api/meta` — 서비스 상태
+
+프론트 초기 로드 시 먼저 호출합니다. `mode`, `period`, `dongs`, `pending`, `caveats`를 통해
+시연 날짜와 현재 표시할 수 없는 항목을 판단합니다. 목업의 `2023-08-05`를 하드코딩하지 않습니다.
 
 ---
 
@@ -355,8 +429,8 @@ python -m urban_microgrid.landcover 법정동경계.shp
 
 | # | 규칙 |
 |---|---|
-| 1 | 프론트는 등급·색상을 계산하지 않는다. 백엔드가 준 값을 그대로 쓴다 |
-| 2 | 모든 퍼센트는 소수 1자리, kWh는 정수, 온도는 소수 1자리 |
+| 1 | 프론트는 등급·색상을 계산하지 않는다. 등급·지도 색은 백엔드 값을 쓴다. 차트 지역 식별색은 고정 가능 |
+| 2 | 모든 퍼센트·kWh·온도는 소수 1자리(냉방 민감도는 최대 2자리) |
 | 3 | 값이 없으면 `null` + `status: "pending"` + `note` 를 함께 보낸다 |
 | 4 | 시각은 ISO 8601 (`2022-07-10T13:00:00`), 시간대는 KST 고정 |
 | 5 | 색상은 hex 문자열. 등급 기준이 바뀌면 백엔드만 수정 |
@@ -378,5 +452,7 @@ python -m urban_microgrid.landcover 법정동경계.shp
 | 지도 폴리곤 | `serialize.build_geojson`, `map_style` |
 | 그날의 기상 요약 | `serialize.build_weather` |
 | 비교표 응답 | `serialize.build_compare` |
+| 모델 성능 응답 | `api.store.DataStore.model_performance` |
+| AI 브리핑 | `briefing.py`, `api.store.DataStore.briefing` |
 
 등급 문구를 바꾸고 싶으면 `HEAT_GRADES` / `RISK_GRADES` 두 리스트만 수정하면 전 화면에 반영됩니다.

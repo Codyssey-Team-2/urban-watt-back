@@ -135,6 +135,25 @@ class Compare(BaseModel):
     rows: list[CompareRow]
 
 
+# ── 모델 성능 ──────────────────────────────────────────────
+class ModelMetric(BaseModel):
+    key: Literal["a", "b", "c"]
+    label: str
+    mape: Optional[float] = None
+    rmse: Optional[float] = None
+    mae: Optional[float] = None
+
+
+class ModelPerformance(BaseModel):
+    status: Literal["ready", "pending"]
+    metric: str
+    models: list[ModelMetric]
+    improvement_percent: Optional[float] = None
+    improvement_basis: str
+    note: str
+    caveat: str
+
+
 # ── ⑤ 지도 마커 ─────────────────────────────────────────
 class DongMarker(BaseModel):
     code: str

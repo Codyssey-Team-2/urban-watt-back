@@ -76,9 +76,11 @@ Codex 가 이 저장소에서 작업을 이어받기 위한 컨텍스트 문서.
 - 프론트 응답 JSON 직렬화
 - 토지피복 SHP/DBF 순수 파이썬 파싱 (의존성 없이 동작)
 - **불투수·식생 피복률 산출** (도엽 10장, 생활권 100m 버퍼) → `docs/06`
-- **FastAPI 백엔드** (`urban_microgrid/api/`) — 7개 엔드포인트, 계약 회귀 테스트
+- **FastAPI 백엔드** (`urban_microgrid/api/`) — 8개 엔드포인트, 계약 회귀 테스트
   대시보드 목업의 화면 하나에 API 하나가 대응한다. 화면에 없는 API 는 만들지 않는다
   (경보 목록은 목업에 패널이 없어 제거. `serialize.build_alerts` 는 남아 있다)
+- **모델 성능** `/api/model-performance` — 목업에 카드가 있어 계약을 추가했으며,
+  S-DoT 매핑·Ablation 전인 현재는 수치를 만들지 않고 `pending`으로 응답한다
 - **지도 폴리곤** `/api/dongs/geojson` — 경계 GeoJSON 이 있으면 채움색까지 실어 보낸다
 - **AI 브리핑** `/api/briefing` — Gemini. 모델은 분석하지 않고 실측 사실표를 문장으로만 옮긴다.
   `briefing.verify()` 가 사실표에 없는 숫자를 검출한다 (규칙 5 의 코드 강제)
@@ -146,7 +148,7 @@ urban_microgrid/
 └── api/            FastAPI 백엔드
     ├── schemas.py  계약을 pydantic 타입으로 고정
     ├── store.py    데이터 원천 (live: 원자료 / snapshot: 실측 산출물)
-    ├── routes.py   엔드포인트 7개
+    ├── routes.py   엔드포인트 8개
     └── main.py     앱 조립 · 예외 → 상태코드
 
 tests/test_api.py   계약 회귀 테스트 (발표 전 한 번 돌릴 것)
@@ -165,6 +167,8 @@ pip install -r requirements.txt
 
 python -m urban_microgrid.run_demo                          # 분석 파이프라인
 uvicorn urban_microgrid.api.main:app --reload --port 8000   # 백엔드 API
+# 또는 루트 ASGI 진입점을 사용:
+uvicorn main:app --reload --port 8000
 python tests/test_api.py                                    # 계약 회귀 테스트
 ```
 

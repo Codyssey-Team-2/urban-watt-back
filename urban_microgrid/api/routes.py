@@ -6,6 +6,7 @@ Urban-MicroGrid | 엔드포인트
     GET /api/dong/{code}                동 상세 카드
     GET /api/dong/{code}/forecast       24시간 시계열 + 그날의 기상 요약
     GET /api/compare?codes=A,B          비교표
+    GET /api/model-performance          모델 성능 카드 (Ablation)
     GET /api/briefing?codes=A,B         AI 브리핑 (LLM)
     GET /api/meta                       모드·미확보 항목·단서 (시연 정직성 패널)
 
@@ -65,6 +66,13 @@ def get_compare(
             seen.add(c)
             wanted.append(c)
     return store.compare(wanted)
+
+
+@router.get("/model-performance", response_model=sc.ModelPerformance,
+            summary="모델 성능 카드")
+def get_model_performance(store: DataStore = Depends(get_store)):
+    """목업의 임의 MAPE를 대신하는 실측 성능 계약."""
+    return store.model_performance()
 
 
 @router.get("/briefing", response_model=sc.Briefing, summary="AI 브리핑")

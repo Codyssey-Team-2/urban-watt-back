@@ -346,6 +346,19 @@ class DataStore:
     def compare(self, codes):
         return S.build_compare([self.summary(c) for c in codes])
 
+    def model_performance(self):
+        """목업 수치 대신 실측 Ablation 결과만 내리는 카드 계약."""
+        return {
+            "status": "pending",
+            "metric": "MAPE",
+            "models": [{**model, "mape": None, "rmse": None, "mae": None}
+                       for model in C.MODEL_VARIANTS],
+            "improvement_percent": None,
+            "improvement_basis": "B(기상만) 대비 C(미기후·도시공간)",
+            "note": C.MODEL_PERFORMANCE_NOTE,
+            "caveat": "측정 전이므로 개선율을 표시하지 않습니다.",
+        }
+
     def meta(self):
         pending, caveats = [], []
         if not C.MICROCLIMATE_PRELIM:

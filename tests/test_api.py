@@ -93,6 +93,7 @@ def test_endpoint_inventory():
         "/api/dong/{code}",              # 우측 지역 카드
         "/api/dong/{code}/forecast",     # 시계열 차트 + 슬라이더
         "/api/compare",                  # 지역 비교
+        "/api/model-performance",        # 우측 모델 성능 카드
         "/api/briefing",                 # AI 브리핑
     }, paths
     assert client.get("/api/alerts").status_code == 404
@@ -153,6 +154,19 @@ def test_markers_always_have_color():
     for m in _get("/api/dongs")["dongs"]:
         assert m["color"].startswith("#")
         assert m["code"] in C.DONG_META
+
+
+def test_model_performance_does_not_invent_metrics():
+    """실제 Ablation 전에는 목업 MAPE·개선율을 내려보내지 않는다."""
+    p = _get("/api/model-performance")
+    assert p["status"] == "pending"
+    assert p["note"] and p["caveat"]
+    assert p["improvement_percent"] is None
+    assert [m["key"] for m in p["models"]] == ["a", "b", "c"]
+    for model in p["models"]:
+        assert model["mape"] is None
+        assert model["rmse"] is None
+        assert model["mae"] is None
 
 
 # ── 실패 경로 ────────────────────────────────────────────
