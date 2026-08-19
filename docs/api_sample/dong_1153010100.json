@@ -1,0 +1,46 @@
+{
+  "code": "1153010100",
+  "name": "구로동",
+  "microclimate": {
+    "status": "pending",
+    "heat_index": null,
+    "components": {
+      "paved": {
+        "percent": null,
+        "text": null,
+        "label": "콘크리트·아스팔트"
+      },
+      "green": {
+        "percent": null,
+        "text": null,
+        "label": "나무·풀밭"
+      },
+      "water": {
+        "percent": null,
+        "text": null,
+        "label": "하천·물"
+      }
+    },
+    "note": "토지피복 도엽 확보 후 산출됩니다"
+  },
+  "demand": {
+    "extra_usage_percent": 27.6,
+    "extra_usage_text": "평소보다 약 4분의 1 더 쓰고 있습니다",
+    "night_percent": 17.8,
+    "day_percent": 35.8,
+    "pattern": "주간형"
+  },
+  "cooling": {
+    "switch_on_temp": 19.0,
+    "switch_on_text": "기온이 19℃를 넘으면 냉방이 시작됩니다",
+    "sensitivity": 2.76,
+    "sensitivity_text": "기온이 1℃ 오르면 전기 사용이 2.8% 늘어납니다"
+  },
+  "peak": {
+    "threshold_kwh": 37974.465574999995,
+    "threshold_text": "37,974 kWh",
+    "risk_days": 12,
+    "total_days": 48,
+    "risk_days_text": "여름 48일 중 12일이 위험일"
+  }
+}

@@ -1,0 +1,225 @@
+{
+  "count": 117,
+  "alerts": [
+    {
+      "dong": "진관동",
+      "time": "2022-07-06T19:00:00",
+      "usage_kwh": 40070.2,
+      "threshold_kwh": 35945.0,
+      "over_percent": 11.5,
+      "temperature": 32.4,
+      "grade": "위험",
+      "color": "#C62828",
+      "message": "위험선을 넘었습니다"
+    },
+    {
+      "dong": "진관동",
+      "time": "2022-07-06T20:00:00",
+      "usage_kwh": 39661.4,
+      "threshold_kwh": 35945.0,
+      "over_percent": 10.3,
+      "temperature": 31.8,
+      "grade": "위험",
+      "color": "#C62828",
+      "message": "위험선을 넘었습니다"
+    },
+    {
+      "dong": "구로동",
+      "time": "2022-07-06T14:00:00",
+      "usage_kwh": 41599.7,
+      "threshold_kwh": 37974.5,
+      "over_percent": 9.5,
+      "temperature": 31.7,
+      "grade": "위험",
+      "color": "#C62828",
+      "message": "위험선을 넘었습니다"
+    },
+    {
+      "dong": "구로동",
+      "time": "2022-07-06T12:00:00",
+      "usage_kwh": 41405.4,
+      "threshold_kwh": 37974.5,
+      "over_percent": 9.0,
+      "temperature": 30.5,
+      "grade": "위험",
+      "color": "#C62828",
+      "message": "위험선을 넘었습니다"
+    },
+    {
+      "dong": "구로동",
+      "time": "2022-07-06T16:00:00",
+      "usage_kwh": 41358.1,
+      "threshold_kwh": 37974.5,
+      "over_percent": 8.9,
+      "temperature": 32.8,
+      "grade": "위험",
+      "color": "#C62828",
+      "message": "위험선을 넘었습니다"
+    },
+    {
+      "dong": "구로동",
+      "time": "2022-07-04T11:00:00",
+      "usage_kwh": 41228.6,
+      "threshold_kwh": 37974.5,
+      "over_percent": 8.6,
+      "temperature": 30.7,
+      "grade": "위험",
+      "color": "#C62828",
+      "message": "위험선을 넘었습니다"
+    },
+    {
+      "dong": "구로동",
+      "time": "2022-07-06T13:00:00",
+      "usage_kwh": 41132.8,
+      "threshold_kwh": 37974.5,
+      "over_percent": 8.3,
+      "temperature": 31.1,
+      "grade": "위험",
+      "color": "#C62828",
+      "message": "위험선을 넘었습니다"
+    },
+    {
+      "dong": "진관동",
+      "time": "2022-07-06T18:00:00",
+      "usage_kwh": 38922.8,
+      "threshold_kwh": 35945.0,
+      "over_percent": 8.3,
+      "temperature": 32.9,
+      "grade": "위험",
+      "color": "#C62828",
+      "message": "위험선을 넘었습니다"
+    },
+    {
+      "dong": "구로동",
+      "time": "2022-07-06T11:00:00",
+      "usage_kwh": 41077.0,
+      "threshold_kwh": 37974.5,
+      "over_percent": 8.2,
+      "temperature": 29.9,
+      "grade": "위험",
+      "color": "#C62828",
+      "message": "위험선을 넘었습니다"
+    },
+    {
+      "dong": "구로동",
+      "time": "2022-07-04T12:00:00",
+      "usage_kwh": 41002.4,
+      "threshold_kwh": 37974.5,
+      "over_percent": 8.0,
+      "temperature": 30.7,
+      "grade": "위험",
+      "color": "#C62828",
+      "message": "위험선을 넘었습니다"
+    },
+    {
+      "dong": "구로동",
+      "time": "2022-07-06T15:00:00",
+      "usage_kwh": 40805.9,
+      "threshold_kwh": 37974.5,
+      "over_percent": 7.5,
+      "temperature": 32.6,
+      "grade": "위험",
+      "color": "#C62828",
+      "message": "위험선을 넘었습니다"
+    },
+    {
+      "dong": "구로동",
+      "time": "2022-08-01T13:00:00",
+      "usage_kwh": 40675.9,
+      "threshold_kwh": 37974.5,
+      "over_percent": 7.1,
+      "temperature": 31.1,
+      "grade": "위험",
+      "color": "#C62828",
+      "message": "위험선을 넘었습니다"
+    },
+    {
+      "dong": "구로동",
+      "time": "2022-08-01T14:00:00",
+      "usage_kwh": 40583.1,
+      "threshold_kwh": 37974.5,
+      "over_percent": 6.9,
+      "temperature": 31.9,
+      "grade": "위험",
+      "color": "#C62828",
+      "message": "위험선을 넘었습니다"
+    },
+    {
+      "dong": "진관동",
+      "time": "2022-07-04T19:00:00",
+      "usage_kwh": 38434.5,
+      "threshold_kwh": 35945.0,
+      "over_percent": 6.9,
+      "temperature": 30.5,
+      "grade": "위험",
+      "color": "#C62828",
+      "message": "위험선을 넘었습니다"
+    },
+    {
+      "dong": "구로동",
+      "time": "2022-07-04T13:00:00",
+      "usage_kwh": 40424.2,
+      "threshold_kwh": 37974.5,
+      "over_percent": 6.5,
+      "temperature": 30.3,
+      "grade": "위험",
+      "color": "#C62828",
+      "message": "위험선을 넘었습니다"
+    },
+    {
+      "dong": "구로동",
+      "time": "2022-07-06T17:00:00",
+      "usage_kwh": 40405.0,
+      "threshold_kwh": 37974.5,
+      "over_percent": 6.4,
+      "temperature": 33.2,
+      "grade": "위험",
+      "color": "#C62828",
+      "message": "위험선을 넘었습니다"
+    },
+    {
+      "dong": "구로동",
+      "time": "2022-08-01T12:00:00",
+      "usage_kwh": 40410.6,
+      "threshold_kwh": 37974.5,
+      "over_percent": 6.4,
+      "temperature": 29.3,
+      "grade": "위험",
+      "color": "#C62828",
+      "message": "위험선을 넘었습니다"
+    },
+    {
+      "dong": "진관동",
+      "time": "2022-08-07T19:00:00",
+      "usage_kwh": 38193.9,
+      "threshold_kwh": 35945.0,
+      "over_percent": 6.3,
+      "temperature": 29.6,
+      "grade": "위험",
+      "color": "#C62828",
+      "message": "위험선을 넘었습니다"
+    },
+    {
+      "dong": "진관동",
+      "time": "2022-08-01T19:00:00",
+      "usage_kwh": 38113.0,
+      "threshold_kwh": 35945.0,
+      "over_percent": 6.0,
+      "temperature": 31.2,
+      "grade": "위험",
+      "color": "#C62828",
+      "message": "위험선을 넘었습니다"
+    },
+    {
+      "dong": "진관동",
+      "time": "2022-08-07T13:00:00",
+      "usage_kwh": 38090.3,
+      "threshold_kwh": 35945.0,
+      "over_percent": 6.0,
+      "temperature": 30.6,
+      "grade": "위험",
+      "color": "#C62828",
+      "message": "위험선을 넘었습니다"
+    }
+  ]
+}

@@ -1,0 +1,160 @@
+"""
+Urban-MicroGrid | 설정
+모든 경로·상수·수식 파라미터를 한 곳에 모은다.
+값을 바꿀 때는 코드가 아니라 이 파일만 수정한다.
+"""
+import os
+from pathlib import Path
+
+# ────────────────────────── 경로 ──────────────────────────
+# 원자료 위치는 실행 환경마다 다르다.
+#   1) 환경변수 UMG_DATA_DIR / UMG_OUT_DIR 이 있으면 그것
+#   2) 없으면 샌드박스 업로드 경로
+#   3) 그것도 없으면 저장소의 data/ · out/
+REPO_ROOT = Path(__file__).resolve().parent.parent
+_SANDBOX_IN = Path("/mnt/user-data/uploads")
+_SANDBOX_OUT = Path("/mnt/user-data/outputs")
+
+
+def _resolve(env_key, sandbox, fallback):
+    v = os.environ.get(env_key)
+    if v:
+        return Path(v)
+    return sandbox if sandbox.exists() else fallback
+
+
+DATA_DIR = _resolve("UMG_DATA_DIR", _SANDBOX_IN, REPO_ROOT / "data")
+OUT_DIR = _resolve("UMG_OUT_DIR", _SANDBOX_OUT, REPO_ROOT / "out")
+
+PATH_POWER_CSV = DATA_DIR / "은평구_진관동_시간대별_전력사용량.csv"
+PATH_POWER_XLSX = DATA_DIR / "구로구_구로동_시간대별_전력사용량_22_06_28___22_10_14.xlsx"
+PATH_ASOS = DATA_DIR / "SURFACE_ASOS_108_HR_2022_2022_2023.csv"
+PATH_SDOT_DIR = None          # S-DoT 주간 CSV 폴더 (설치위치 매핑 확보 후 사용)
+PATH_SDOT_LOCATION = None     # 시리얼 ↔ 법정동 매핑 파일
+
+# ─────────────────────── 대상 법정동 ───────────────────────
+# 법정동코드 = 시군구코드(5) + 법정동코드(5)
+# 주의: 은평구 진관동은 11400. 10800은 다른 동이다.
+DONGS = {
+    "진관동": {"sigungu": "11380", "bjdong": "11400"},
+    # "답십리동": {"sigungu": "11230", "bjdong": "10500"},   # 후보
+    # "대림동":   {"sigungu": "11560", "bjdong": "11000"},   # 후보
+}
+
+# ─────────────────────── 좌표계 (GIS) ───────────────────────
+CRS_WORK = "EPSG:5179"    # 면적·버퍼·교차 등 모든 공간 연산
+CRS_DISPLAY = "EPSG:4326"  # 지도 표출 전용
+BUFFER_RADII_M = [50, 100, 200]
+BUFFER_DEFAULT_M = 100
+
+# ─────────────────────── 수식 파라미터 ───────────────────────
+# 기저수요 산출용 '쾌적일' 정의: 냉난방 영향이 작은 일평균기온 구간
+COMFORT_TEMP_MIN = 15.0
+COMFORT_TEMP_MAX = 20.0
+
+# 전환온도 T* 그리드 탐색 범위
+TSTAR_GRID_MIN = 18.0
+TSTAR_GRID_MAX = 29.0
+TSTAR_GRID_STEP = 0.5
+
+# 피크 임계치: 동별 과거 분포의 상위 백분위 (절대 kWh 아님)
+PEAK_QUANTILE = 0.95
+
+# 폭염일 판정 (일 최고기온)
+HEATWAVE_TMAX = 33.0
+
+# 야간 구간 (도시열섬이 가장 뚜렷한 시간대)
+NIGHT_HOURS = list(range(20, 24)) + list(range(0, 7))
+
+# 분석 기간 (시계열 3종의 교집합)
+PERIOD_START = "2022-06-28"
+PERIOD_END = "2022-10-14"
+SUMMER_START = "2022-06-28"
+SUMMER_END = "2022-08-31"
+
+# 공휴일 (분석 기간 내)
+HOLIDAYS = [
+    "2022-08-15",  # 광복절
+    "2022-09-09", "2022-09-10", "2022-09-11", "2022-09-12",  # 추석 연휴
+    "2022-10-03",  # 개천절
+    "2022-10-10",  # 한글날 대체
+]
+
+# S-DoT 이상치 제거 규칙
+SDOT_DELTA_T_LIMIT = 10.0   # |S-DoT − ASOS| 가 이 값을 넘으면 제거 [℃]
+SDOT_TEMP_RANGE = (-30.0, 55.0)
+SDOT_STUCK_HOURS = 6        # 동일값이 이 시간 이상 연속되면 고착으로 간주
+
+
+# ══════════════════════════════════════════════════════════
+#  API (백엔드 서비스) 설정
+# ══════════════════════════════════════════════════════════
+# 동 식별은 항상 10자리 법정동코드. 이름으로 조회하지 않는다.
+# 주의: 은평구 진관동은 11400. 10800 은 다른 동이다.
+DONG_META = {
+    "1138011400": {
+        "name": "진관동", "sigungu": "11380", "bjdong": "11400",
+        "source": "csv",                      # 전력 원자료 형식
+        "lat": 37.637, "lng": 126.933,
+    },
+    "1153010100": {
+        "name": "구로동", "sigungu": "11530", "bjdong": "10100",
+        "source": "xlsx",
+        "lat": 37.495, "lng": 126.887,
+    },
+}
+DONG_CODE_BY_NAME = {v["name"]: k for k, v in DONG_META.items()}
+
+# 좌표 출처. 법정동 경계 SHP 의 representative_point 를 확보하면 "shp" 로 바꾼다.
+DONG_LATLNG_SOURCE = "provisional"
+
+# ─── 토지피복 (미기후) 산출값 ───────────────────────────────
+# 출처: docs/06_토지피복_불투수식생_산출결과.md
+#   세분류 토지피복지도 2022(EGIS) 10개 도엽 · EPSG:5186 · 5m 격자 래스터화
+#   전력소비시설(L3 111·112·121·131·141·162·163)을 핵심영역으로 100m 버퍼
+#
+# 넣지 말아야 할 값 (전부 실제로 혼동된 적이 있다):
+#   · 도엽 전체값 (진관동 도엽 ISR 5.37 / VCR 87.59) — 북한산이 지배한다
+#   · 창신동 예비값 (83.0 / 13.1) — 애초에 다른 동이다
+#   · docs/02 예시응답의 35.0 / 58.2 — 계약 설명용 예시값이다
+#
+# ★ 나지·습지는 불투수에도 식생에도 넣지 않는다.
+#   따라서 ISR + VCR + WSR 의 합은 100% 가 되지 않는다. 화면에도 이 단서를 함께 보낸다.
+MICROCLIMATE_PRELIM = {
+    "1138011400": {"ISR": 31.2, "VCR": 57.4, "WSR": 0.9,
+                   "bare": 8.9, "wetland": 1.6, "area_km2": 10.56},
+    "1153010100": {"ISR": 78.8, "VCR": 15.9, "WSR": 0.9,
+                   "bare": 4.3, "wetland": 0.2, "area_km2": 30.02},
+}
+
+# 위 값이 '어떤 기준의 값인지'를 응답에 함께 실어 보낸다.
+# 법정동 경계 클리핑 전이라는 사실을 프론트가 숨길 수 없게 하기 위한 것.
+MICROCLIMATE_BASIS = {
+    "tag": "프로젝트 예비값",
+    "method": "생활권 100m 버퍼 · 5m 격자 래스터화",
+    "source": "세분류 토지피복지도 2022 (EGIS, 10개 도엽)",
+    "clipped_to_dong": False,
+    "note": "[프로젝트 예비값] 생활권 100m 버퍼 기준 · 도엽 병합 범위(법정동 경계 클리핑 전)",
+    "caveat": "나지·습지는 불투수·식생 어디에도 포함하지 않으므로 세 비율의 합은 100%가 아닙니다",
+}
+
+# ─── 서버 ────────────────────────────────────────────────
+API_TITLE = "Urban-MicroGrid API"
+API_VERSION = "0.1.0"
+API_PREFIX = "/api"
+# 데모용. 실배포 시 프론트 도메인만 남긴다.
+API_CORS_ORIGINS = ["*"]
+
+# 실측 스냅샷 (원자료가 없을 때 API 가 이 값을 서빙한다)
+SNAPSHOT_DIR = REPO_ROOT / "docs" / "api_sample"
+
+ALERTS_TOP_N = 20          # GET /api/alerts 기본 반환 개수
+FORECAST_DEMO_DATE = "2022-07-10"   # 시연 기준일 (가장 더웠던 날)
+
+# 스냅샷 파일명. 시계열 스냅샷은 동 정보를 파일 안에 갖고 있지 않으므로
+# 어느 동의 시계열인지 여기서 명시한다.
+SNAPSHOT_DONG_PATTERN = "dong_{code}.json"
+SNAPSHOT_ALERTS = "alerts.json"
+SNAPSHOT_FORECAST = {
+    "1138011400": "forecast_jingwan.json",
+}

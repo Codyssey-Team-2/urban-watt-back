@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.venv/
+data/*
+!data/README.md
+out/*
+!out/.gitkeep
+.DS_Store

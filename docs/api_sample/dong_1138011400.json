@@ -1,0 +1,49 @@
+{
+  "code": "1138011400",
+  "name": "진관동",
+  "microclimate": {
+    "status": "ready",
+    "heat_index": 38.4,
+    "grade": "낮음",
+    "color": "#66BB6A",
+    "message": "나무·풀밭이 많은 편입니다",
+    "components": {
+      "paved": {
+        "percent": 35.0,
+        "text": "10곳 중 4곳",
+        "label": "콘크리트·아스팔트"
+      },
+      "green": {
+        "percent": 58.2,
+        "text": "10곳 중 6곳",
+        "label": "나무·풀밭"
+      },
+      "water": {
+        "percent": 1.0,
+        "text": "10곳 중 0곳",
+        "label": "하천·물"
+      }
+    },
+    "note": null
+  },
+  "demand": {
+    "extra_usage_percent": 33.1,
+    "extra_usage_text": "평소보다 약 3분의 1 더 쓰고 있습니다",
+    "night_percent": 31.2,
+    "day_percent": 34.7,
+    "pattern": "주간형"
+  },
+  "cooling": {
+    "switch_on_temp": 18.0,
+    "switch_on_text": "기온이 18℃를 넘으면 냉방이 시작됩니다",
+    "sensitivity": 2.77,
+    "sensitivity_text": "기온이 1℃ 오르면 전기 사용이 2.8% 늘어납니다"
+  },
+  "peak": {
+    "threshold_kwh": 35944.965625,
+    "threshold_text": "35,945 kWh",
+    "risk_days": 12,
+    "total_days": 49,
+    "risk_days_text": "여름 49일 중 12일이 위험일"
+  }
+}
