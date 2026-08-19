@@ -148,13 +148,38 @@ API_CORS_ORIGINS = ["*"]
 # 실측 스냅샷 (원자료가 없을 때 API 가 이 값을 서빙한다)
 SNAPSHOT_DIR = REPO_ROOT / "docs" / "api_sample"
 
-ALERTS_TOP_N = 20          # GET /api/alerts 기본 반환 개수
 FORECAST_DEMO_DATE = "2022-07-10"   # 시연 기준일 (가장 더웠던 날)
+
+# ─── 법정동 경계 폴리곤 (지도 표출) ─────────────────────────
+# GeoJSON 하나만 있으면 된다. 없으면 /api/dongs/geojson 이 pending 으로 답한다.
+# SHP 을 받았다면 아래로 변환한다 (geopandas 필요):
+#     python -m urban_microgrid.landcover 법정동경계.shp data/dong_boundaries.geojson
+BOUNDARY_GEOJSON_CANDIDATES = [
+    DATA_DIR / "dong_boundaries.geojson",
+    DATA_DIR / "법정동경계.geojson",
+    SNAPSHOT_DIR / "dong_boundaries.geojson",
+]
+# 경계 파일마다 코드 컬럼 이름이 다르다(EMD_CD · ADM_CD · adm_cd · BJCD …).
+# 이름을 맞추려 들지 말고 '값이 우리 법정동코드와 같은 속성'을 찾는다.
+BOUNDARY_CODE_HINTS = ["EMD_CD", "ADM_CD", "adm_cd", "BJDONG_CD", "code"]
+BOUNDARY_SIMPLIFY_DEG = 0.00005     # 좌표 단순화 (원본은 수 MB → 지도가 멈춘다)
+
+# ─── 지도 스타일 ────────────────────────────────────────────
+# 폴리곤 채움색·투명도까지 백엔드가 정한다. 프론트는 그리기만 한다.
+MAP_STYLE = {
+    "fill_opacity": 0.32,
+    "stroke_width": 4,
+    "stroke_opacity": 0.95,
+    # 등급별 테두리색 (채움은 등급 색을 그대로 쓴다)
+    "stroke_darken": {
+        "#2E7D32": "#1B5E20", "#66BB6A": "#2E9E6B", "#FBC02D": "#F9A825",
+        "#EF6C00": "#E65100", "#C62828": "#D2543A", "#9E9E9E": "#757575",
+    },
+}
 
 # 스냅샷 파일명. 시계열 스냅샷은 동 정보를 파일 안에 갖고 있지 않으므로
 # 어느 동의 시계열인지 여기서 명시한다.
 SNAPSHOT_DONG_PATTERN = "dong_{code}.json"
-SNAPSHOT_ALERTS = "alerts.json"
 SNAPSHOT_FORECAST = {
     "1138011400": "forecast_jingwan.json",
 }

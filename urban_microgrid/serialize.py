@@ -193,10 +193,37 @@ def build_forecast(df_dong, theta):
             "baseline_kwh": round(float(r["B"]), 1) if pd.notna(r["B"]) else None,
             "extra_percent": round(float(r["R"]), 1) if pd.notna(r["R"]) else None,
             "temperature": float(r["T_asos"]) if pd.notna(r["T_asos"]) else None,
+            # 원자료에 있을 때만 실린다 (없으면 화면이 해당 칩을 숨긴다)
+            "humidity": _opt(r, "RH", pd),
+            "wind": _opt(r, "WS", pd),
             "risk_ratio": round(ratio, 3),
             **g,
         })
     return {"threshold_kwh": round(theta, 1) if theta else None, "points": points}
+
+
+def _opt(row, col, pd):
+    v = row.get(col)
+    return None if v is None or not pd.notna(v) else round(float(v), 1)
+
+
+def build_weather(points):
+    """
+    시계열에서 그날의 기상 요약을 뽑는다 (헤더의 '폭염 35.4℃' 칩).
+    값이 없는 항목은 None 으로 두고, 프론트는 그 칩을 그리지 않는다.
+    """
+    def stat(key, fn):
+        vals = [p[key] for p in points if p.get(key) is not None]
+        return round(fn(vals), 1) if vals else None
+
+    return {
+        "t_max": stat("temperature", max),
+        "t_min": stat("temperature", min),
+        "humidity": stat("humidity", lambda v: sum(v) / len(v)),
+        "wind": stat("wind", lambda v: sum(v) / len(v)),
+        "heatwave": (lambda t: None if t is None else t >= C.HEATWAVE_TMAX)(
+            stat("temperature", max)),
+    }
 
 
 def build_alerts(df, theta_map, top_n=20):
@@ -222,6 +249,94 @@ def build_alerts(df, theta_map, top_n=20):
             })
     rows.sort(key=lambda x: -x["over_percent"])
     return {"count": len(rows), "alerts": rows[:top_n]}
+
+
+def map_style(color):
+    """
+    등급 색 → 폴리곤 채움·테두리 스타일.
+    프론트는 색을 고르지 않는다. 받은 값을 그대로 그린다.
+    """
+    color = color or "#9E9E9E"
+    st = C.MAP_STYLE
+    return {
+        "fill_color": color,
+        "fill_opacity": st["fill_opacity"],
+        "stroke_color": st["stroke_darken"].get(color, color),
+        "stroke_width": st["stroke_width"],
+        "stroke_opacity": st["stroke_opacity"],
+    }
+
+
+def _walk_coords(geom):
+    """GeoJSON 좌표를 [경도, 위도] 쌍으로 훑는다 (중첩 깊이 무관)."""
+    def rec(x):
+        if isinstance(x, (list, tuple)):
+            if len(x) >= 2 and all(isinstance(v, (int, float)) for v in x[:2]):
+                yield x[0], x[1]
+            else:
+                for i in x:
+                    yield from rec(i)
+    yield from rec((geom or {}).get("coordinates", []))
+
+
+def bbox_of(geoms):
+    """[서, 남, 동, 북] — 프론트가 지도 범위를 맞출 때 쓴다."""
+    pts = [p for g in geoms for p in _walk_coords(g)]
+    if not pts:
+        return None
+    xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+    return [round(min(xs), 6), round(min(ys), 6),
+            round(max(xs), 6), round(max(ys), 6)]
+
+
+def build_geojson(shapes, summaries, meta):
+    """
+    GET /api/dongs/geojson — 지도 폴리곤.
+
+    shapes    {법정동코드: GeoJSON geometry}
+    summaries {법정동코드: 동 상세 응답}
+    meta      config.DONG_META
+
+    폴리곤 색·투명도·테두리까지 properties 에 실어 보낸다.
+    프론트는 features 를 그대로 지도 라이브러리에 넘기면 된다.
+    """
+    features = []
+    for code, geom in shapes.items():
+        s = summaries.get(code, {})
+        mc = s.get("microclimate", {})
+        dm = meta.get(code, {})
+        color = mc.get("color") or "#9E9E9E"
+        features.append({
+            "type": "Feature",
+            "geometry": geom,
+            "properties": {
+                "code": code,
+                "name": s.get("name") or dm.get("name"),
+                "status": mc.get("status", "pending"),
+                "heat_index": mc.get("heat_index"),
+                "grade": mc.get("grade"),
+                "color": color,
+                "message": mc.get("message"),
+                "extra_usage_percent": s.get("demand", {}).get("extra_usage_percent"),
+                "risk_days": s.get("peak", {}).get("risk_days"),
+                "lat": dm.get("lat"),
+                "lng": dm.get("lng"),
+                # 지도 위 말풍선에 그대로 찍으면 되는 문장
+                "tooltip": " · ".join(x for x in [
+                    s.get("name") or dm.get("name"),
+                    f"도시열 {mc['heat_index']}" if mc.get("heat_index") is not None else None,
+                    mc.get("grade"),
+                ] if x),
+                **map_style(color),
+            },
+        })
+    return {
+        "type": "FeatureCollection",
+        "status": "ready" if features else "pending",
+        "bbox": bbox_of([f["geometry"] for f in features]),
+        "features": features,
+        "note": None,
+    }
 
 
 def build_compare(summaries):

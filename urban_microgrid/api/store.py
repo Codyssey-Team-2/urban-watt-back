@@ -48,13 +48,15 @@ class DataStore:
         self.summaries = {}      # {code: dong summary dict}
         self.theta = {}          # {동이름: θ}
         self._panel = None       # live 모드 전용 (pandas DataFrame)
-        self._alerts = None      # snapshot 모드 전용
         self._forecast = {}      # snapshot 모드 전용 {code: {date: payload}}
+        self._shapes = {}        # {법정동코드: GeoJSON geometry}
+        self._boundary_src = None
 
     # ══════════════════════════════════════════════════
     #  적재
     # ══════════════════════════════════════════════════
     def load(self):
+        self._load_boundaries()
         ok, why = self._live_possible()
         if ok:
             try:
@@ -152,10 +154,6 @@ class DataStore:
             if raw["peak"]["threshold_kwh"]:
                 self.theta[meta["name"]] = float(raw["peak"]["threshold_kwh"])
 
-        alerts_path = C.SNAPSHOT_DIR / C.SNAPSHOT_ALERTS
-        if alerts_path.exists():
-            self._alerts = json.loads(alerts_path.read_text(encoding="utf-8"))
-
         for code, fname in C.SNAPSHOT_FORECAST.items():
             path = C.SNAPSHOT_DIR / fname
             if not path.exists():
@@ -165,6 +163,40 @@ class DataStore:
             if not points:
                 continue
             self._forecast[code] = {points[0]["time"][:10]: payload}
+
+    # ── 경계 폴리곤 ───────────────────────────────────
+    def _load_boundaries(self):
+        """
+        법정동 경계 GeoJSON 을 찾아 대상 동의 도형만 추린다.
+
+        경계 파일마다 코드 컬럼 이름이 다르므로(EMD_CD · ADM_CD · adm_cd …)
+        이름을 맞추려 들지 않고 '값이 우리 법정동코드와 같은 속성'을 찾는다.
+        파일이 없으면 조용히 넘어가고, 엔드포인트가 pending 으로 답한다.
+        """
+        for path in C.BOUNDARY_GEOJSON_CANDIDATES:
+            if not path.exists():
+                continue
+            try:
+                fc = json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            for feat in fc.get("features", []):
+                code = self._match_code(feat.get("properties") or {})
+                if code and feat.get("geometry"):
+                    self._shapes[code] = feat["geometry"]
+            if self._shapes:
+                self._boundary_src = str(path)
+                return
+
+    @staticmethod
+    def _match_code(props):
+        # 힌트 컬럼을 먼저 보고, 없으면 전체 속성값을 훑는다
+        ordered = [props.get(k) for k in C.BOUNDARY_CODE_HINTS if k in props]
+        for v in ordered + list(props.values()):
+            code = str(v).strip() if v is not None else ""
+            if code in C.DONG_META:
+                return code
+        return None
 
     # ── 공통 조립 ─────────────────────────────────────
     @staticmethod
@@ -239,28 +271,22 @@ class DataStore:
 
         payload.update(code=code, name=name, date=date)
         payload.setdefault("threshold_kwh", summary["peak"]["threshold_kwh"])
+        payload["weather"] = S.build_weather(payload.get("points", []))
         return payload
 
-    def alerts(self, limit=None, dong=None):
-        limit = limit or C.ALERTS_TOP_N
-
-        if self.mode == "snapshot":
-            if not self._alerts:
-                raise DataUnavailable("경보 스냅샷이 없습니다.")
-            rows = list(self._alerts["alerts"])
-            total = self._alerts["count"]
-            if dong:
-                rows = [a for a in rows if a["dong"] == dong]
-                total = len(rows)          # 스냅샷은 상위 N 건만 갖고 있다
-        else:
-            summer = self._panel[(self._panel.date >= C.SUMMER_START) &
-                                 (self._panel.date <= C.SUMMER_END)]
-            if dong:
-                summer = summer[summer.dong == dong]
-            built = S.build_alerts(summer, self.theta, top_n=limit)
-            return built
-
-        return {"count": total, "alerts": rows[:limit]}
+    def geojson(self):
+        if not self._shapes:
+            raise DataUnavailable(
+                "법정동 경계 폴리곤이 아직 없습니다.",
+                note="법정동 경계 GeoJSON 을 data/dong_boundaries.geojson 에 넣으면 "
+                     "지도에 폴리곤이 그려집니다 (SHP 은 landcover 로 변환)")
+        missing = [C.DONG_META[c]["name"] for c in C.DONG_META
+                   if c not in self._shapes]
+        out = S.build_geojson(self._shapes, self.summaries, C.DONG_META)
+        out["source"] = self._boundary_src
+        if missing:
+            out["note"] = f"경계를 찾지 못한 동: {', '.join(missing)}"
+        return out
 
     def compare(self, codes):
         return S.build_compare([self.summary(c) for c in codes])
@@ -276,6 +302,8 @@ class DataStore:
             caveats.append(C.MICROCLIMATE_BASIS["caveat"])
         if self.mode == "snapshot":
             pending.append("전 기간 시계열 — 원자료 투입 후 live 모드에서 열림")
+        if not self._shapes:
+            pending.append("지도 폴리곤 — 법정동 경계 GeoJSON 대기")
         pending.append("ΔT·야간 열섬·Ablation — S-DoT 설치위치 매핑 대기")
         if C.DONG_LATLNG_SOURCE == "provisional":
             caveats.append("지도 좌표는 임시값입니다. 경계 SHP 의 대표점으로 교체 예정")

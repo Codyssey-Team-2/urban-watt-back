@@ -80,13 +80,64 @@ def test_forecast_threshold_matches_summary():
     assert f["threshold_kwh"] == d["peak"]["threshold_kwh"]
 
 
-def test_alerts_sorted_desc():
-    a = _get("/api/alerts?limit=5")
-    over = [x["over_percent"] for x in a["alerts"]]
-    assert over == sorted(over, reverse=True)
-    assert a["count"] >= len(a["alerts"])      # count 는 전체 초과 건수
-    for x in a["alerts"]:
-        assert x["usage_kwh"] > x["threshold_kwh"]
+def test_endpoint_inventory():
+    """
+    데모 화면에 대응하지 않는 API 는 서비스하지 않는다.
+    엔드포인트가 늘거나 줄면 여기서 걸리고, 계약 문서도 같이 고치게 된다.
+    """
+    paths = set(client.get("/openapi.json").json()["paths"])
+    assert paths == {
+        "/api/meta",                     # 데이터 정보 · 출처 표기
+        "/api/dongs",                    # 미니맵 핀
+        "/api/dongs/geojson",            # 지도 폴리곤
+        "/api/dong/{code}",              # 우측 지역 카드
+        "/api/dong/{code}/forecast",     # 시계열 차트 + 슬라이더
+        "/api/compare",                  # 지역 비교
+    }, paths
+    assert client.get("/api/alerts").status_code == 404
+
+
+def test_map_polygons_contract():
+    """
+    지도 폴리곤. 경계 파일이 없으면 pending 으로 답해야 하고,
+    있으면 대상 동만 · 스타일까지 실려 나와야 한다.
+    """
+    r = client.get("/api/dongs/geojson")
+    if r.status_code == 503:
+        body = r.json()
+        assert body["status"] == "pending" and body["note"]
+        return
+    d = r.json()
+    assert d["type"] == "FeatureCollection"
+    assert d["bbox"] and len(d["bbox"]) == 4
+    for f in d["features"]:
+        assert f["geometry"]["type"] in ("Polygon", "MultiPolygon")
+        p = f["properties"]
+        assert p["code"] in C.DONG_META          # 대상 외 동이 섞이면 안 된다
+        assert p["fill_color"].startswith("#")
+        assert p["stroke_color"].startswith("#")
+        assert 0 < p["fill_opacity"] <= 1
+
+
+def test_map_color_matches_card_color():
+    """지도 폴리곤과 우측 카드가 다른 색이면 화면이 거짓말을 한다."""
+    from urban_microgrid import serialize as S
+
+    for code in C.DONG_META:
+        mc = _get(f"/api/dong/{code}")["microclimate"]
+        assert S.map_style(mc["color"])["fill_color"] == (mc["color"] or "#9E9E9E")
+
+
+def test_forecast_weather_block():
+    """헤더 기상 칩. 값이 없는 항목은 None 이어야 한다(0 으로 채우지 않는다)."""
+    f = _get(f"/api/dong/{JINGWAN}/forecast")
+    w = f["weather"]
+    temps = [p["temperature"] for p in f["points"] if p["temperature"] is not None]
+    assert w["t_max"] == round(max(temps), 1)
+    assert w["t_min"] == round(min(temps), 1)
+    assert w["heatwave"] is (w["t_max"] >= C.HEATWAVE_TMAX)
+    for k in ("humidity", "wind"):
+        assert w[k] is None or isinstance(w[k], float)
 
 
 def test_compare_is_row_oriented():

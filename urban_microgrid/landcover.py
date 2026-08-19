@@ -250,3 +250,54 @@ def export_boundary_geojson(boundaries, dong_codes, out_path,
         "bbox": [round(v, 6) for v in b.total_bounds],
         "centers": b[[code_field, "lat", "lng"]].to_dict("records"),
     }
+
+
+# ══════════════════════════════════════════════════════════
+#  경계 SHP → 프론트용 GeoJSON (CLI)
+# ══════════════════════════════════════════════════════════
+def make_boundary_geojson(shp_path, out_path=None, code_field=None):
+    """
+    법정동 경계 SHP 을 받아 API 가 바로 서빙할 GeoJSON 을 만든다.
+
+        python -m urban_microgrid.landcover 법정동경계.shp
+
+    코드 컬럼 이름은 자료마다 다르므로(EMD_CD · ADM_CD · adm_cd …)
+    지정하지 않으면 대상 법정동코드가 실제로 들어 있는 컬럼을 찾아 쓴다.
+    """
+    import geopandas as gpd
+
+    out_path = Path(out_path or C.BOUNDARY_GEOJSON_CANDIDATES[0])
+    b = gpd.read_file(shp_path)
+    codes = list(C.DONG_META)
+
+    if code_field is None:
+        for col in b.columns:
+            if col == "geometry":
+                continue
+            if b[col].astype(str).str.strip().isin(codes).any():
+                code_field = col
+                break
+    if code_field is None:
+        raise ValueError(
+            f"대상 법정동코드({', '.join(codes)})를 담은 컬럼을 찾지 못했습니다. "
+            f"컬럼 목록: {[c for c in b.columns if c != 'geometry']}")
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    res = export_boundary_geojson(b, codes, out_path, code_field=code_field,
+                                  simplify_deg=C.BOUNDARY_SIMPLIFY_DEG)
+    res["code_field"] = code_field
+    return res
+
+
+if __name__ == "__main__":
+    import sys
+
+    if len(sys.argv) < 2:
+        print(__doc__)
+        print("사용법:  python -m urban_microgrid.landcover <경계.shp> [출력.geojson]")
+        raise SystemExit(1)
+    info = make_boundary_geojson(*sys.argv[1:3])
+    print(f"  저장: {info['path']}")
+    print(f"  코드 컬럼: {info['code_field']} | bbox: {info['bbox']}")
+    for c in info["centers"]:
+        print(f"  {c}")

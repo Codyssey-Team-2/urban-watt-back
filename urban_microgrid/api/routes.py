@@ -2,9 +2,9 @@
 Urban-MicroGrid | 엔드포인트
 
     GET /api/dongs                      지도 마커
+    GET /api/dongs/geojson              지도 폴리곤 (FeatureCollection)
     GET /api/dong/{code}                동 상세 카드
-    GET /api/dong/{code}/forecast       24시간 시계열
-    GET /api/alerts                     경보 목록
+    GET /api/dong/{code}/forecast       24시간 시계열 + 그날의 기상 요약
     GET /api/compare?codes=A,B          비교표
     GET /api/meta                       모드·미확보 항목·단서 (시연 정직성 패널)
 
@@ -34,17 +34,21 @@ def get_meta(store: DataStore = Depends(get_store)):
 
 @router.get("/dongs", response_model=sc.DongList, summary="지도 마커")
 def get_dongs(store: DataStore = Depends(get_store)):
+    """미니맵·핀 표시용. 폴리곤이 필요하면 `/api/dongs/geojson` 을 쓴다."""
     return store.markers()
 
 
-@router.get("/alerts", response_model=sc.Alerts, summary="경보 목록")
-def get_alerts(
-    limit: int = Query(C.ALERTS_TOP_N, ge=1, le=1000, description="반환 개수"),
-    dong: str | None = Query(None, description="동 이름으로 필터 (선택)"),
-    store: DataStore = Depends(get_store),
-):
-    """`over_percent` 내림차순. `count` 는 전체 초과 건수(반환 개수가 아니다)."""
-    return store.alerts(limit=limit, dong=dong)
+@router.get("/dongs/geojson", response_model=sc.DongGeoJSON,
+            summary="지도 폴리곤 (GeoJSON)")
+def get_dongs_geojson(store: DataStore = Depends(get_store)):
+    """
+    법정동 경계 폴리곤. 표준 FeatureCollection 이라 지도 라이브러리에
+    그대로 넣으면 된다(Leaflet `L.geoJSON` · Mapbox `addSource` · deck.gl `GeoJsonLayer`).
+
+    채움색·투명도·테두리까지 `properties` 에 들어 있다. 프론트는 색을 고르지 않는다.
+    좌표는 EPSG:4326, 순서는 [경도, 위도].
+    """
+    return store.geojson()
 
 
 @router.get("/compare", response_model=sc.Compare, summary="비교표")

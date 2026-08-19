@@ -83,7 +83,8 @@ def load_power_xlsx(path, dong_name):
 def load_asos(path):
     """기상청 ASOS 서울(108) 시간자료. 인코딩은 cp949."""
     a = pd.read_csv(path, encoding="cp949")
-    rename = {"기온(°C)": "T_asos", "습도(%)": "RH", "일사(MJ/m2)": "SR"}
+    rename = {"기온(°C)": "T_asos", "습도(%)": "RH", "일사(MJ/m2)": "SR",
+              "풍속(m/s)": "WS"}
     keep = ["일시"] + [c for c in rename if c in a.columns]
     a = a[keep].rename(columns=rename)
     a["ts"] = pd.to_datetime(a["일시"])

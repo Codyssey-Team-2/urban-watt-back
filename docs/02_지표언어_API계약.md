@@ -98,10 +98,10 @@ MCI는 −100~+100이라 음수가 나와서 직관적이지 않다. **화면에
 
 | 메서드 | 경로 | 용도 |
 |---|---|---|
-| `GET` | `/api/dongs` | 동 목록 (지도 마커) |
+| `GET` | `/api/dongs` | 동 목록 (미니맵 핀) |
+| `GET` | `/api/dongs/geojson` | **지도 폴리곤 (FeatureCollection)** |
 | `GET` | `/api/dong/{code}` | 동 상세 카드 |
 | `GET` | `/api/dong/{code}/forecast?date=` | 24시간 시계열 |
-| `GET` | `/api/alerts` | 경보 목록 |
 | `GET` | `/api/compare?codes=A,B` | 두 동 비교표 |
 | `GET` | `/api/meta` | 서비스 모드 · 미확보 항목 · 발표 단서 |
 
@@ -195,7 +195,15 @@ MCI는 −100~+100이라 음수가 나와서 직관적이지 않다. **화면에
 
 ```json
 {
+  "code": "1138011400",
+  "name": "진관동",
+  "date": "2022-07-10",
   "threshold_kwh": 35945.0,
+  "weather": {
+    "t_max": 35.4, "t_min": 25.6,
+    "humidity": 68.0, "wind": 1.2,
+    "heatwave": true
+  },
   "points": [
     {
       "time": "2022-07-10T12:00:00",
@@ -233,30 +241,73 @@ MCI는 −100~+100이라 음수가 나와서 직관적이지 않다. **화면에
 
 시연 포인트: **12시 "경계" → 13시 "위험"** 으로 넘어가는 순간이 화면에서 색으로 보입니다.
 
+`weather` 는 그날의 기상 요약입니다(헤더의 `폭염 35.4℃` 칩).
+`humidity` · `wind` 는 원자료가 있을 때만 채워지고, 없으면 `null` 입니다 — **프론트는 해당 칩을 숨깁니다.**
+`heatwave` 는 일 최고기온 ≥ 33℃ 판정을 백엔드가 내린 결과입니다.
+
 ---
 
-## ③ `GET /api/alerts` — 경보 목록
+## ③ `GET /api/dongs/geojson` — 지도 폴리곤
+
+표준 GeoJSON `FeatureCollection` 입니다. 지도 라이브러리에 **그대로** 넣으면 됩니다.
+(Leaflet `L.geoJSON(data)` · Mapbox `map.addSource({type:"geojson",data})` · deck.gl `GeoJsonLayer`)
 
 ```json
 {
-  "count": 117,
-  "alerts": [
+  "type": "FeatureCollection",
+  "status": "ready",
+  "bbox": [126.87, 37.49, 126.96, 37.66],
+  "source": "data/dong_boundaries.geojson",
+  "note": null,
+  "features": [
     {
-      "dong": "진관동",
-      "time": "2022-08-15T15:00:00",
-      "usage_kwh": 40070.1,
-      "threshold_kwh": 35945.0,
-      "over_percent": 11.5,
-      "temperature": 33.1,
-      "grade": "위험",
-      "color": "#C62828",
-      "message": "위험선을 넘었습니다"
+      "type": "Feature",
+      "geometry": { "type": "Polygon", "coordinates": [[[126.92, 37.62], ...]] },
+      "properties": {
+        "code": "1138011400",
+        "name": "진관동",
+        "status": "ready",
+        "heat_index": 36.9,
+        "grade": "낮음",
+        "color": "#66BB6A",
+        "message": "나무·풀밭이 많은 편입니다",
+        "extra_usage_percent": 33.1,
+        "risk_days": 12,
+        "lat": 37.637, "lng": 126.933,
+        "tooltip": "진관동 · 도시열 36.9 · 낮음",
+        "fill_color": "#66BB6A",
+        "fill_opacity": 0.32,
+        "stroke_color": "#2E9E6B",
+        "stroke_width": 4,
+        "stroke_opacity": 0.95
+      }
     }
   ]
 }
 ```
 
-`over_percent` 내림차순 정렬. 프론트는 그대로 리스트에 꽂으면 됩니다.
+**프론트 렌더링**
+- `fill_color` / `fill_opacity` / `stroke_*` 를 그대로 쓴다. **색을 계산하지 않는다**
+- `bbox` 로 지도 범위를 맞춘다 `[서, 남, 동, 북]`
+- `tooltip` 은 말풍선에 그대로 찍는다
+- 좌표계는 **EPSG:4326**, 좌표 순서는 `[경도, 위도]`
+
+지도 폴리곤 색과 우측 카드 색은 **같은 등급표(`serialize.HEAT_GRADES`)에서 나옵니다.**
+둘이 어긋나는 사고는 `tests/test_api.py::test_map_color_matches_card_color` 가 막습니다.
+
+### 경계 파일이 없을 때
+
+`503` + `{"status": "pending", "note": "..."}` 로 답합니다. 프론트는 폴리곤 레이어를 건너뛰고
+`/api/dongs` 의 핀만 찍으면 됩니다. 지도가 빈 화면이 되지 않습니다.
+
+경계 SHP 을 받으면 한 줄로 변환합니다.
+
+```bash
+python -m urban_microgrid.landcover 법정동경계.shp
+```
+
+`data/dong_boundaries.geojson` 이 생기고, 서버를 재시작하면 폴리곤이 나갑니다.
+코드 컬럼 이름(`EMD_CD` · `ADM_CD` · `adm_cd` …)은 자동으로 찾습니다.
 
 ---
 
@@ -324,7 +375,8 @@ MCI는 −100~+100이라 음수가 나와서 직관적이지 않다. **화면에
 | 냉방 문장 2종 | `serialize.as_ac_sentence`, `as_switch_on_sentence` |
 | 동 상세 응답 | `serialize.build_dong_summary` |
 | 시계열 응답 | `serialize.build_forecast` |
-| 경보 응답 | `serialize.build_alerts` |
+| 지도 폴리곤 | `serialize.build_geojson`, `map_style` |
+| 그날의 기상 요약 | `serialize.build_weather` |
 | 비교표 응답 | `serialize.build_compare` |
 
 등급 문구를 바꾸고 싶으면 `HEAT_GRADES` / `RISK_GRADES` 두 리스트만 수정하면 전 화면에 반영됩니다.

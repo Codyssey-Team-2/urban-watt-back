@@ -76,7 +76,10 @@ Claude Code 가 이 저장소에서 작업을 이어받기 위한 컨텍스트 �
 - 프론트 응답 JSON 직렬화
 - 토지피복 SHP/DBF 순수 파이썬 파싱 (의존성 없이 동작)
 - **불투수·식생 피복률 산출** (도엽 10장, 생활권 100m 버퍼) → `docs/06`
-- **FastAPI 백엔드** (`urban_microgrid/api/`) — 계약 6개 엔드포인트, 계약 회귀 테스트
+- **FastAPI 백엔드** (`urban_microgrid/api/`) — 6개 엔드포인트, 계약 회귀 테스트
+  대시보드 목업의 화면 하나에 API 하나가 대응한다. 화면에 없는 API 는 만들지 않는다
+  (경보 목록은 목업에 패널이 없어 제거. `serialize.build_alerts` 는 남아 있다)
+- **지도 폴리곤** `/api/dongs/geojson` — 경계 GeoJSON 이 있으면 채움색까지 실어 보낸다
 
 ### 막혀 있음 (외부 자료 대기)
 | 항목 | 필요 자료 | 신청처 |
@@ -180,10 +183,13 @@ GIS 클리핑을 하려면 `geopandas` 가 필요하다(선택 의존성).
 2. **도엽 37608037 · 37608097 신청** — 지도 모서리 공백(수치에는 영향 없음).
 3. **S-DoT 위치 매핑 확보 → `io_loaders.load_sdot()` 활성화**
    → ΔT 생성 → `run_demo` STEP 8(Ablation) 자동 활성화
-4. **버퍼 민감도 분석** `landcover.buffer_sensitivity()` 로 50/100/200m 비교,
+4. **법정동 경계 → 지도 폴리곤**
+   `python -m urban_microgrid.landcover 법정동경계.shp` → `data/dong_boundaries.geojson`
+   서버 재시작하면 `/api/dongs/geojson` 이 `pending` → `ready` 로 바뀐다.
+5. **버퍼 민감도 분석** `landcover.buffer_sensitivity()` 로 50/100/200m 비교,
    성능이 가장 좋은 반경 채택
-5. **생활인구 결합** — 용도·재실 통제변수
-6. **동 3개 이상 확장** → `models.fit_interaction()` 활성화 (β₃ 추정)
+6. **생활인구 결합** — 용도·재실 통제변수
+7. **동 3개 이상 확장** → `models.fit_interaction()` 활성화 (β₃ 추정)
 
 ---
 

@@ -100,7 +100,18 @@ class ForecastPoint(Graded):
     baseline_kwh: Optional[float] = None
     extra_percent: Optional[float] = None
     temperature: Optional[float] = None
+    humidity: Optional[float] = None
+    wind: Optional[float] = None
     risk_ratio: float
+
+
+class DayWeather(BaseModel):
+    """헤더의 기상 칩. 값이 없는 항목은 프론트가 칩을 숨긴다."""
+    t_max: Optional[float] = None
+    t_min: Optional[float] = None
+    humidity: Optional[float] = None
+    wind: Optional[float] = None
+    heatwave: Optional[bool] = None      # 일 최고기온 ≥ 33℃
 
 
 class Forecast(BaseModel):
@@ -108,22 +119,8 @@ class Forecast(BaseModel):
     name: str
     date: str
     threshold_kwh: Optional[float] = None
+    weather: Optional[DayWeather] = None
     points: list[ForecastPoint]
-
-
-# ── ③ 경보 ─────────────────────────────────────────────
-class Alert(Graded):
-    dong: str
-    time: str
-    usage_kwh: float
-    threshold_kwh: float
-    over_percent: float
-    temperature: Optional[float] = None
-
-
-class Alerts(BaseModel):
-    count: int                          # 전체 초과 건수 (반환 개수가 아님)
-    alerts: list[Alert]
 
 
 # ── ④ 비교표 ────────────────────────────────────────────
@@ -155,7 +152,44 @@ class DongList(BaseModel):
     latlng_source: str                  # "provisional" | "shp"
 
 
-# ── ⑥ 메타 (데모 정직성 패널) ────────────────────────────
+# ── ⑥ 지도 폴리곤 (GeoJSON) ─────────────────────────────
+class FeatureProperties(BaseModel):
+    """지도 라이브러리에 그대로 넘기는 속성. 프론트는 색을 계산하지 않는다."""
+    code: str
+    name: Optional[str] = None
+    status: str
+    heat_index: Optional[float] = None
+    grade: Optional[str] = None
+    color: str
+    message: Optional[str] = None
+    extra_usage_percent: Optional[float] = None
+    risk_days: Optional[int] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    tooltip: Optional[str] = None
+    fill_color: str
+    fill_opacity: float
+    stroke_color: str
+    stroke_width: float
+    stroke_opacity: float
+
+
+class DongFeature(BaseModel):
+    type: Literal["Feature"]
+    geometry: dict[str, Any]            # EPSG:4326, [경도, 위도]
+    properties: FeatureProperties
+
+
+class DongGeoJSON(BaseModel):
+    type: Literal["FeatureCollection"]
+    status: Literal["ready", "pending"]
+    bbox: Optional[list[float]] = None  # [서, 남, 동, 북] — 지도 범위 맞추기
+    features: list[DongFeature]
+    source: Optional[str] = None
+    note: Optional[str] = None
+
+
+# ── ⑦ 메타 (데모 정직성 패널) ────────────────────────────
 class Meta(BaseModel):
     service: str
     version: str

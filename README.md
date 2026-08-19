@@ -32,14 +32,16 @@ python tests/test_api.py
 
 ## API 6개
 
-| 메서드 | 경로 | 용도 |
+대시보드 화면 하나에 API 하나씩 대응합니다.
+
+| 메서드 | 경로 | 화면 |
 |---|---|---|
-| GET | `/api/dongs` | 지도 마커 |
-| GET | `/api/dong/{code}` | 동 상세 카드 |
-| GET | `/api/dong/{code}/forecast?date=` | 24시간 시계열 |
-| GET | `/api/alerts` | 경보 목록 |
-| GET | `/api/compare?codes=A,B` | 비교표 |
-| GET | `/api/meta` | 모드 · 미확보 항목 · 발표 단서 |
+| GET | `/api/dongs` | 미니맵 핀 |
+| GET | `/api/dongs/geojson` | 지도 폴리곤 (GeoJSON FeatureCollection) |
+| GET | `/api/dong/{code}` | 우측 지역 카드 |
+| GET | `/api/dong/{code}/forecast?date=` | 시계열 차트 · 시간 슬라이더 · 헤더 기상 칩 |
+| GET | `/api/compare?codes=A,B` | 지역 비교 |
+| GET | `/api/meta` | 데이터 정보 · 출처 표기 |
 
 조회는 10자리 법정동코드로만 합니다 — 진관동 `1138011400`, 구로동 `1153010100`.
 
