@@ -30,7 +30,7 @@ python tests/test_api.py
 
 ---
 
-## API 6개
+## API 7개
 
 대시보드 화면 하나에 API 하나씩 대응합니다.
 

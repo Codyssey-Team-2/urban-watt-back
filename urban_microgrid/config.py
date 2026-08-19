@@ -6,12 +6,23 @@ Urban-MicroGrid | 설정
 import os
 from pathlib import Path
 
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+# ────────────────────────── .env ──────────────────────────
+# 루트 .env 에 GEMINI_API_KEY 등을 넣어두면 여기서 읽어 os.environ 에 얹는다.
+# .env 는 git 제외 대상이다(.gitignore) — 절대 커밋하지 않는다.
+# python-dotenv 가 없어도 API 는 그냥 뜬다(환경변수를 직접 export 했다면 그걸로 충분).
+try:
+    from dotenv import load_dotenv
+    load_dotenv(REPO_ROOT / ".env")
+except ImportError:
+    pass
+
 # ────────────────────────── 경로 ──────────────────────────
 # 원자료 위치는 실행 환경마다 다르다.
 #   1) 환경변수 UMG_DATA_DIR / UMG_OUT_DIR 이 있으면 그것
 #   2) 없으면 샌드박스 업로드 경로
 #   3) 그것도 없으면 저장소의 data/ · out/
-REPO_ROOT = Path(__file__).resolve().parent.parent
 _SANDBOX_IN = Path("/mnt/user-data/uploads")
 _SANDBOX_OUT = Path("/mnt/user-data/outputs")
 
@@ -191,11 +202,12 @@ SNAPSHOT_FORECAST = {
 # 백엔드가 실측값으로 사실표(fact sheet)를 만들어 프롬프트에 넣고,
 # 모델은 '문장으로 옮기는 일'만 한다. 숫자를 만들어낼 여지를 남기지 않는다.
 LLM_PROVIDER = os.environ.get("UMG_LLM_PROVIDER", "gemini")
-LLM_MODEL = os.environ.get("UMG_LLM_MODEL", "gemini-2.5-flash")
+LLM_MODEL = os.environ.get("UMG_LLM_MODEL", "gemini-3.6-flash")
 LLM_API_KEY_ENVS = ["GEMINI_API_KEY", "GOOGLE_API_KEY"]   # 앞에서부터 찾는다
-LLM_MAX_OUTPUT_TOKENS = 400
+LLM_MAX_OUTPUT_TOKENS = 800
 LLM_TEMPERATURE = 0.2        # 시연 중 문장이 흔들리지 않게 낮게 잡는다
-LLM_TIMEOUT_S = 20
+LLM_THINKING_LEVEL = "MINIMAL"  # 브리핑은 분석이 아니라 문장화 — 출력 토큰을 보존한다
+LLM_TIMEOUT_S = 60          # Gemini 3.x 첫 호출은 20초를 넘길 수 있다
 LLM_CACHE = True             # 같은 요청은 다시 호출하지 않는다 (비용·변동 방지)
 
 # 브리핑 문장 규칙. 이 프로젝트의 표현 원칙을 그대로 모델에 건다.

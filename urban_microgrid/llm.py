@@ -77,6 +77,9 @@ def _generate_gemini(system, user):
                 system_instruction=system,
                 max_output_tokens=C.LLM_MAX_OUTPUT_TOKENS,
                 temperature=C.LLM_TEMPERATURE,
+                thinking_config=types.ThinkingConfig(
+                    thinking_level=C.LLM_THINKING_LEVEL,
+                ),
             ),
         )
     except Exception as e:                      # 네트워크·인증·쿼터

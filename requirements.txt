@@ -5,6 +5,7 @@ pydantic>=2.5
 
 # AI 브리핑 (선택) — 키가 없으면 API 가 pending 으로 답한다
 google-genai>=1.0
+python-dotenv>=1.0
 
 # 분석 파이프라인 (live 모드 · run_demo)
 pandas>=2.0

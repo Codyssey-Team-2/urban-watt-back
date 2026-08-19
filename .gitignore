@@ -1,6 +1,7 @@
 __pycache__/
 *.pyc
 .venv/
+.env
 data/*
 !data/README.md
 out/*
