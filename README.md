@@ -41,12 +41,17 @@ python tests/test_api.py
 | GET | `/api/dong/{code}` | 우측 지역 카드 |
 | GET | `/api/dong/{code}/forecast?date=` | 시계열 차트 · 시간 슬라이더 · 헤더 기상 칩 |
 | GET | `/api/compare?codes=A,B` | 지역 비교 |
+| GET | `/api/briefing?codes=A,B` | AI 브리핑 (Gemini) |
 | GET | `/api/meta` | 데이터 정보 · 출처 표기 |
 
 조회는 10자리 법정동코드로만 합니다 — 진관동 `1138011400`, 구로동 `1153010100`.
 
 **프론트엔드는 계산하지 않습니다.** 등급·색상·문구까지 백엔드가 만들어 내려보냅니다.
 값이 없으면 `null` + `status: "pending"` + `note` 를 함께 보내므로, 화면은 스켈레톤과 사유를 띄우면 됩니다.
+
+AI 브리핑은 `GEMINI_API_KEY` 가 있을 때만 동작하고, 없으면 `pending` 으로 답합니다.
+모델은 분석하지 않습니다 — 백엔드가 만든 실측 사실표를 문장으로 옮기고,
+사실표에 없는 숫자가 섞이면 `unverified_numbers` 로 걸러냅니다.
 
 자세한 계약: [docs/02_지표언어_API계약.md](docs/02_지표언어_API계약.md) ·
 실행 가이드: [docs/05_백엔드_실행가이드.md](docs/05_백엔드_실행가이드.md)

@@ -6,6 +6,7 @@ Urban-MicroGrid | 엔드포인트
     GET /api/dong/{code}                동 상세 카드
     GET /api/dong/{code}/forecast       24시간 시계열 + 그날의 기상 요약
     GET /api/compare?codes=A,B          비교표
+    GET /api/briefing?codes=A,B         AI 브리핑 (LLM)
     GET /api/meta                       모드·미확보 항목·단서 (시연 정직성 패널)
 
 동 식별은 항상 10자리 법정동코드다. 이름으로 조회하지 않는다.
@@ -64,6 +65,25 @@ def get_compare(
             seen.add(c)
             wanted.append(c)
     return store.compare(wanted)
+
+
+@router.get("/briefing", response_model=sc.Briefing, summary="AI 브리핑")
+def get_briefing(
+    codes: str = Query(_ALL_CODES, description="쉼표로 구분한 법정동코드"),
+    date: str | None = Query(None, description="YYYY-MM-DD (기상 요약용, 선택)"),
+    refresh: bool = Query(False, description="캐시를 무시하고 다시 생성"),
+    store: DataStore = Depends(get_store),
+):
+    """
+    실측값으로 만든 사실표를 프롬프트에 넣어 모델에 넘긴다.
+    모델은 분석하지 않는다 — 이미 끝난 분석을 문장으로 옮길 뿐이다.
+
+    응답에는 실제로 넘어간 `prompt` 와 `facts` 가 함께 들어 있어
+    코드를 열지 않고도 프롬프트를 검토할 수 있다.
+    `unverified_numbers` 가 비어 있지 않으면 사실표에 없는 숫자가 섞인 것이다.
+    """
+    wanted = [c.strip() for c in codes.split(",") if c.strip()]
+    return store.briefing(wanted, date, refresh=refresh)
 
 
 @router.get("/dong/{code}", response_model=sc.DongSummary, summary="동 상세")

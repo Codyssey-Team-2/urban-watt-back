@@ -189,13 +189,36 @@ class DongGeoJSON(BaseModel):
     note: Optional[str] = None
 
 
-# ── ⑦ 메타 (데모 정직성 패널) ────────────────────────────
+# ── ⑦ AI 브리핑 ─────────────────────────────────────────
+class BriefingPrompt(BaseModel):
+    """실제로 모델에 넘어간 프롬프트. 프롬프트 튜닝을 코드 수정 없이 하기 위해 노출한다."""
+    system: str
+    user: str
+
+
+class Briefing(BaseModel):
+    codes: list[str]
+    date: Optional[str] = None
+    status: Literal["ready", "needs_review"]
+    text: str
+    provider: str
+    model: str
+    usage: Optional[dict[str, Any]] = None
+    # 사실표에 없는 숫자 — 비어 있지 않으면 화면에 경고를 띄운다
+    unverified_numbers: list[str] = Field(default_factory=list)
+    note: Optional[str] = None
+    facts: dict[str, Any]
+    prompt: BriefingPrompt
+
+
+# ── ⑧ 메타 (데모 정직성 패널) ────────────────────────────
 class Meta(BaseModel):
     service: str
     version: str
     mode: Literal["live", "snapshot"]
     mode_text: str
     period: dict[str, str]
+    llm: dict[str, Any]
     dongs: list[dict[str, Any]]
     pending: list[str]                  # 아직 못 만드는 것 + 사유
     caveats: list[str]                  # 발표에서 함께 읽어야 하는 단서

@@ -16,7 +16,9 @@ API 는 두 가지 모드로 뜬다.
 import json
 from functools import lru_cache
 
+from .. import briefing as B
 from .. import config as C
+from .. import llm
 from .. import serialize as S
 
 
@@ -51,6 +53,7 @@ class DataStore:
         self._forecast = {}      # snapshot 모드 전용 {code: {date: payload}}
         self._shapes = {}        # {법정동코드: GeoJSON geometry}
         self._boundary_src = None
+        self._briefings = {}     # {(코드들, 날짜): 브리핑} — 시연 중 문장 고정
 
     # ══════════════════════════════════════════════════
     #  적재
@@ -288,6 +291,58 @@ class DataStore:
             out["note"] = f"경계를 찾지 못한 동: {', '.join(missing)}"
         return out
 
+    def briefing(self, codes, date=None, refresh=False):
+        """
+        AI 브리핑. 사실표를 만들어 프롬프트로 조립하고 모델에 넘긴다.
+
+        같은 요청은 캐시에서 돌려준다. 시연 도중 새로고침할 때마다
+        문구가 흔들리면 안 되고, 호출 비용도 계속 나가면 안 된다.
+        """
+        key = (tuple(codes), date)
+        if C.LLM_CACHE and not refresh and key in self._briefings:
+            return self._briefings[key]
+
+        summaries = [self.summary(c) for c in codes]
+        weather = None
+        try:
+            weather = self.forecast(codes[0], date).get("weather")
+        except DataUnavailable:
+            pass                      # 기상 요약은 있으면 좋고 없어도 된다
+
+        facts = B.build_facts(summaries, weather)
+        prompt = B.build_prompt(facts)
+
+        try:
+            result = llm.generate(prompt["system"], prompt["user"])
+        except llm.LLMUnavailable as e:
+            raise DataUnavailable(
+                f"AI 브리핑을 만들 수 없습니다: {e}",
+                note="키를 설정하면 자동으로 활성화됩니다. 그때까지 화면은 "
+                     "스켈레톤을 띄우면 됩니다")
+        except llm.LLMFailed as e:
+            raise DataUnavailable(f"모델 호출에 실패했습니다: {e}",
+                                  note="잠시 후 다시 시도하거나 키·쿼터를 확인하세요")
+
+        # 사실표에 없는 숫자가 섞였는지 검사한다. 숨기지 않고 그대로 실어 보낸다.
+        unverified = B.verify(result["text"], facts)
+        out = {
+            "codes": list(codes),
+            "date": date,
+            "status": "needs_review" if unverified else "ready",
+            "text": result["text"],
+            "provider": result["provider"],
+            "model": result["model"],
+            "usage": result.get("usage"),
+            "unverified_numbers": unverified,
+            "note": ("사실표에 없는 숫자가 있습니다. 발표 전 확인하세요"
+                     if unverified else None),
+            "facts": facts,
+            "prompt": prompt,
+        }
+        if C.LLM_CACHE:
+            self._briefings[key] = out
+        return out
+
     def compare(self, codes):
         return S.build_compare([self.summary(c) for c in codes])
 
@@ -304,6 +359,9 @@ class DataStore:
             pending.append("전 기간 시계열 — 원자료 투입 후 live 모드에서 열림")
         if not self._shapes:
             pending.append("지도 폴리곤 — 법정동 경계 GeoJSON 대기")
+        llm_status, llm_note = llm.status()
+        if llm_status != "ready":
+            pending.append(f"AI 브리핑 — {llm_note}")
         pending.append("ΔT·야간 열섬·Ablation — S-DoT 설치위치 매핑 대기")
         if C.DONG_LATLNG_SOURCE == "provisional":
             caveats.append("지도 좌표는 임시값입니다. 경계 SHP 의 대표점으로 교체 예정")
@@ -322,6 +380,8 @@ class DataStore:
             "dongs": [{"code": c, "name": m["name"],
                        "loaded": c in self.summaries}
                       for c, m in C.DONG_META.items()],
+            "llm": {"provider": C.LLM_PROVIDER, "model": C.LLM_MODEL,
+                    "status": llm_status},
             "pending": pending,
             "caveats": caveats,
         }

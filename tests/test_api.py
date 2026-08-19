@@ -93,6 +93,7 @@ def test_endpoint_inventory():
         "/api/dong/{code}",              # 우측 지역 카드
         "/api/dong/{code}/forecast",     # 시계열 차트 + 슬라이더
         "/api/compare",                  # 지역 비교
+        "/api/briefing",                 # AI 브리핑
     }, paths
     assert client.get("/api/alerts").status_code == 404
 
@@ -232,6 +233,65 @@ def test_cover_percentages_do_not_sum_to_100():
         comp = _get(f"/api/dong/{code}")["microclimate"]["components"]
         three = sum(comp[k]["percent"] for k in ("paved", "green", "water"))
         assert three < 99.9, f"{code}: ISR+VCR+WSR = {three} — 분류 기준이 바뀌었습니다"
+
+
+# ── AI 브리핑 ───────────────────────────────────────────
+def test_briefing_is_pending_without_key():
+    """키가 없으면 에러가 아니라 '아직 못 함'으로 답해야 한다."""
+    from urban_microgrid import llm
+
+    if llm.status()[0] == "ready":
+        return
+    e = _get("/api/briefing", status=503)
+    assert e["status"] == "pending" and e["note"]
+
+
+def test_briefing_pipeline_with_stub_model():
+    """
+    실제 호출 없이 사실표 → 프롬프트 → 검증 경로를 통째로 태운다.
+    모델이 무엇을 받는지, 지어낸 숫자가 걸리는지가 핵심이다.
+    """
+    from urban_microgrid import llm
+    from urban_microgrid.api.store import get_store
+
+    store = get_store()
+    store._briefings.clear()
+    real, seen = llm.generate, {}
+
+    def stub(system, user):
+        seen["system"], seen["user"] = system, user
+        return {"text": "진관동은 야간 추가 사용이 31.2%로 구로동 17.8%보다 높습니다. "
+                        "정확도는 93% 입니다.",
+                "provider": "stub", "model": "stub-1", "usage": None}
+
+    llm.generate = stub
+    try:
+        b = _get(f"/api/briefing?codes={JINGWAN},{GURO}")
+    finally:
+        llm.generate = real
+        store._briefings.clear()
+
+    # 프롬프트에 표현 규칙과 실측값이 실제로 들어갔는가
+    assert "인과 표현을 쓰지 않는다" in seen["system"]
+    assert "진관동" in seen["user"] and "31.2" in seen["user"]
+    # 응답이 프롬프트를 그대로 노출하는가 (코드 안 열고 튜닝하려면 필요)
+    assert b["prompt"]["system"] == seen["system"]
+    assert b["facts"]["지역수"] == 2
+    # 사실표에 없는 93 이 걸려야 한다
+    assert "93" in b["unverified_numbers"]
+    assert b["status"] == "needs_review" and b["note"]
+
+
+def test_briefing_verifier_catches_invented_numbers():
+    """docs/04 가 지적한 미측정 성능 수치가 문장에 섞이면 걸려야 한다."""
+    from urban_microgrid import briefing as B
+    from urban_microgrid.api.store import get_store
+
+    facts = B.build_facts([get_store().summary(c) for c in C.DONG_META])
+    clean = "구로동은 도시열 81.5로 진관동 36.9보다 높게 관측됩니다."
+    dirty = "미기후를 넣으면 MAPE 가 14.3%에서 6.2%로 개선됩니다."
+    assert B.verify(clean, facts) == []
+    assert set(B.verify(dirty, facts)) >= {"14.3", "6.2"}
 
 
 def test_live_pipeline_if_raw_data_present():

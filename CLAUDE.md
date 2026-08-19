@@ -80,6 +80,8 @@ Claude Code 가 이 저장소에서 작업을 이어받기 위한 컨텍스트 �
   대시보드 목업의 화면 하나에 API 하나가 대응한다. 화면에 없는 API 는 만들지 않는다
   (경보 목록은 목업에 패널이 없어 제거. `serialize.build_alerts` 는 남아 있다)
 - **지도 폴리곤** `/api/dongs/geojson` — 경계 GeoJSON 이 있으면 채움색까지 실어 보낸다
+- **AI 브리핑** `/api/briefing` — Gemini. 모델은 분석하지 않고 실측 사실표를 문장으로만 옮긴다.
+  `briefing.verify()` 가 사실표에 없는 숫자를 검출한다 (규칙 5 의 코드 강제)
 
 ### 막혀 있음 (외부 자료 대기)
 | 항목 | 필요 자료 | 신청처 |
@@ -138,6 +140,8 @@ urban_microgrid/
 ├── evaluate.py     성능지표·경보·통계검정
 ├── landcover.py    토지피복 GIS (순수 파이썬 + geopandas 두 경로)
 ├── serialize.py    프론트엔드 JSON 직렬화
+├── briefing.py     AI 브리핑 사실표·프롬프트·숫자 검증
+├── llm.py          LLM 호출부 (Gemini 어댑터)
 ├── run_demo.py     전체 파이프라인
 └── api/            FastAPI 백엔드
     ├── schemas.py  계약을 pydantic 타입으로 고정
